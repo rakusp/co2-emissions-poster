@@ -11,13 +11,25 @@ library(maps)
 library(countrycode)
 ```
 
+```{r}
+population_gdp = data.table(read.csv("data/co2-emissions-vs-gdp.csv"))
+population_gdp$GDP = population_gdp$GDP.per.capita*population_gdp$Total.population..Gapminder..HYDE...UN.
+population_gdp = population_gdp[,Population:=Total.population..Gapminder..HYDE...UN.][!is.na(Code) & !is.na(Population) & !is.na(GDP),.(Code,Population,GDP, Year)]
+population_gdp
+
+```
+
 
 ```{r}
 load_data = function (name){
   print(paste("data/",name,".csv"))
-  data = read.csv(paste("data/",name,".csv", sep=""), sep = "|",  col.names = c("DT", "Country", "Partner", "Industry", "Year", "Value"))
+  data = read.csv(paste("data/",name,".csv", sep=""), sep = "|",  col.names = c("DT", "Country", "Partner", "Industry", "Year", "Emissions"))
   data = data.table(data)
-  data[Partner== "WLD" & Industry=="DTOTAL"][,c("DT","Partner", "Industry"):=NULL]
+  data = data[Partner== "WLD" & Industry=="DTOTAL"][,c("DT","Partner", "Industry"):=NULL]
+  data = data[population_gdp, on = .(Country = Code, Year = Year), nomatch=0]
+  data[,EmissionsPerCapita:=Emissions/Population]
+  data[,EmissionsPerGDP:=Emissions/GDP]
+  data
 }
 ```
 
@@ -28,28 +40,18 @@ export = load_data("EXGR_TCO2")
 teritorial = load_data("PROD_CO2")
 ```
 ```{r}
-exports
+export
+```
+
+```{r}
+data.table(map_data("world"))
 ```
 
 
 
-```{r}
-export$CountryName <- countrycode(export$Country, origin = 'iso3c', destination = 'country.name')
-```
-```{r}
-exportCountries = export[!is.na(CountryName) & Year == 2014]
-exportCountries[CountryName == "United States"]$CountryName = "USA"
-exportCountries
-```
-
 
 ```{r}
-```
-
-
-
-```{r}
-plotMap <- function(data, year){
+plotMap <- function(data, year, column){
   worldMap<- data.table(map_data("world"))
   worldMap = worldMap[worldMap$region != "Antarctica"]
   mapData <- data[Year == year]
@@ -58,20 +60,38 @@ plotMap <- function(data, year){
   mapData[CountryName == "United States"]$CountryName = "USA"
   ggplot(mapData, aes(map_id = CountryName)) +
     geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="white", color="#7f7f7f", size=0.5) +
-    geom_map(aes(fill = Value), map = worldMap) +
-    expand_limits(x = worldMap$long, y = worldMap$lat) 
+    geom_map(aes(fill = mapData[[column]]), map = worldMap, colour = "gray") +
+    expand_limits(x = worldMap$long, y = worldMap$lat)  +
+    scale_fill_viridis_c(option = "magma")
 }
 ```
 
 
 ```{r}
-plotMap(export,2014)
-plotMap(import,2014)
-plotMap(teritorial,2014)
-plotMap(everything,2014)
+name = "Emissions"
+plotMap(export,2014, name)
+plotMap(import,2014, name)
+plotMap(teritorial,2014, name)
+plotMap(everything,2014, name)
 ```
 
+
 ```{r}
-worldMap[worldMap$region == "Antarctica"]
+name = "EmissionsPerCapita"
+plotMap(export,2014, name)
+plotMap(import,2014, name)
+plotMap(teritorial,2014, name)
+plotMap(everything,2014, name)
 ```
+
+
+
+```{r}
+name = "EmissionsPerGDP"
+plotMap(export,2014, name)
+plotMap(import,2014, name)
+plotMap(teritorial,2014, name)
+plotMap(everything,2014, name)
+```
+
 
