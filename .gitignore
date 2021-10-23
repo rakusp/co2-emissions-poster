@@ -40,5 +40,5 @@ vignettes/*.pdf
 
 data/EXGR_TCO2.csv
 data/IMGR_TCO2.csv
-data/FD_TCO2.csv
-data/PROD_TCO2.csv
+data/FD_CO2.csv
+data/PROD_CO2.csv
