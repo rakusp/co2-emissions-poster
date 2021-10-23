@@ -1,0 +1,77 @@
+---
+title: "maps"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(maps)
+library(countrycode)
+```
+
+
+```{r}
+load_data = function (name){
+  print(paste("data/",name,".csv"))
+  data = read.csv(paste("data/",name,".csv", sep=""), sep = "|",  col.names = c("DT", "Country", "Partner", "Industry", "Year", "Value"))
+  data = data.table(data)
+  data[Partner== "WLD" & Industry=="DTOTAL"][,c("DT","Partner", "Industry"):=NULL]
+}
+```
+
+```{r}
+everything = load_data("FD_CO2")
+import = load_data("IMGR_TCO2")
+export = load_data("EXGR_TCO2")
+teritorial = load_data("PROD_CO2")
+```
+```{r}
+exports
+```
+
+
+
+```{r}
+export$CountryName <- countrycode(export$Country, origin = 'iso3c', destination = 'country.name')
+```
+```{r}
+exportCountries = export[!is.na(CountryName) & Year == 2014]
+exportCountries[CountryName == "United States"]$CountryName = "USA"
+exportCountries
+```
+
+
+```{r}
+```
+
+
+
+```{r}
+plotMap <- function(data, year){
+  worldMap<- data.table(map_data("world"))
+  worldMap = worldMap[worldMap$region != "Antarctica"]
+  mapData <- data[Year == year]
+  mapData$CountryName <- countrycode(mapData$Country, origin = 'iso3c', destination = 'country.name')
+  mapData = mapData[!is.na(CountryName)]
+  mapData[CountryName == "United States"]$CountryName = "USA"
+  ggplot(mapData, aes(map_id = CountryName)) +
+    geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="white", color="#7f7f7f", size=0.5) +
+    geom_map(aes(fill = Value), map = worldMap) +
+    expand_limits(x = worldMap$long, y = worldMap$lat) 
+}
+```
+
+
+```{r}
+plotMap(export,2014)
+plotMap(import,2014)
+plotMap(teritorial,2014)
+plotMap(everything,2014)
+```
+
+```{r}
+worldMap[worldMap$region == "Antarctica"]
+```
+
