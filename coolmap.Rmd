@@ -1,0 +1,239 @@
+---
+title: "coolmap"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#install.packages("tidyverse")
+#install.packages("hrbrthemes")
+#install.packages("DT")
+#install.packages("kableExtra")
+```
+
+
+```{r cars}
+# Libraries
+library(tidyverse)
+#library(hrbrthemes)
+library(viridis)
+library(DT)
+#library(kableExtra)
+options(knitr.table.format = "html")
+library(jpeg)
+library(maps)
+library(geosphere)
+library(grid)
+library(data.table)
+library(countrycode)
+
+#load(url("https://github.com/holtzy/About-Surfers-On-Twitter/raw/master/DATA/Surf_Hashtag_Data.Rdata"))
+#data <- data %>% select(homename, homecontinent, homecountry, homelat, homelon, travelcontinent, travelcountry, travellat, travellon) %>% na.omit()
+#write.table(data, file="/Users/y.holtz/Dropbox/data_to_viz/Example_dataset/19_MapConnection.csv", quote=TRUE, row.names=FALSE, sep=",")  
+
+# Load dataset from github (Surfer project)
+#data <- read.table("https://github.com/holtzy/data_to_viz/raw/master/Example_dataset/19_MapConnection.csv", header=T, sep=",")
+
+# Show long format
+#tmp <- data %>%
+#  tail(5) %>%
+#  mutate(homename = gsub( ", Western Australia", "", homename)) %>%
+#  mutate(homename = gsub( ", France", "", homename)) %>%
+#  mutate(homename = gsub( " - Bali - Indonesia", "", homename)) %>%
+#  mutate(homelat=round(homelat,1), homelon=round(homelon,1), travellat=round(travellat,1), travellon=round(travellon,1)) %>%
+#  select(homename, homelat, homelon, travelcountry, travellat, travellon)
+
+#tmp
+
+```
+
+
+```{r}
+don=rbind(
+    Paris=c(2,49),
+    Melbourne=c(145,-38),
+    Saint.Petersburg=c(30.32, 59.93),
+    Abidjan=c(-4.03, 5.33),
+    Montreal=c(-73.57, 45.52),
+    Nairobi=c(36.82, -1.29),
+    Salvador=c(-38.5, -12.97)
+    )  %>% as.data.frame()
+colnames(don)=c("long","lat")
+
+
+all_pairs=cbind(t(combn(don$long, 2)), t(combn(don$lat, 2))) %>% as.data.frame()
+colnames(all_pairs)=c("long1","long2","lat1","lat2")
+
+plot_my_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, ...){
+    inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=50, addStartEnd=TRUE, breakAtDateLine=F)             
+    inter=data.frame(inter)
+    diff_of_lon=abs(dep_lon) + abs(arr_lon)
+    if(diff_of_lon > 180){
+        lines(subset(inter, lon>=0), ...)
+        lines(subset(inter, lon<0), ...)
+    }else{
+        lines(inter, ...)
+        }
+}
+
+# background map
+par(mar=c(0,0,0,0))
+map('world',col="#f2f2f2", fill=TRUE, bg="white", lwd=0.05,mar=rep(0,4),border=0, ylim=c(-80,80) )
+ 
+# add every connections:
+for(i in 1:nrow(all_pairs)){
+    plot_my_connection(all_pairs$long1[i], all_pairs$lat1[i], all_pairs$long2[i], all_pairs$lat2[i], col="#69b3a2", lwd=1)
+    }
+ 
+# add points and names of cities
+points(x=don$long, y=don$lat, col="#69b3a2", cex=2, pch=20)
+text(rownames(don), x=don$long, y=don$lat,  col="black", cex=1, pos=4)
+```
+
+```{r}
+data <- read.table("https://github.com/holtzy/data_to_viz/raw/master/Example_dataset/19_MapConnection.csv", header=T, sep=",")
+data
+```
+```{r}
+population_gdp = data.table(read.csv("data/co2-emissions-vs-gdp.csv"))
+population_gdp$GDP = population_gdp$GDP.per.capita*population_gdp$Total.population..Gapminder..HYDE...UN.
+population_gdp = population_gdp[,Population:=Total.population..Gapminder..HYDE...UN.][!is.na(Code) & !is.na(Population) & !is.na(GDP),.(Code,Population,GDP, Year)]
+population_gdp
+```
+
+```{r}
+load_data = function (name){
+  data = read.csv(paste("data/",name,".csv", sep=""), sep = "|",  col.names = c("DT", "Country", "Partner", "Industry", "Year", "Emissions"))
+  data = data.table(data)
+  #data = data[Partner== "WLD" & Industry=="DTOTAL"][,c("DT","Partner", "Industry"):=NULL]
+  data = data[Industry=="DTOTAL"][,c("DT","Industry"):=NULL]
+  data = data[population_gdp, on = .(Country = Code, Year = Year), nomatch=0]
+  data[,EmissionsPerCapita:=Emissions/Population]
+  data[,EmissionsPerGDP:=Emissions/GDP]
+  data
+}
+export_d = load_data("EXGR_TCO2")
+export_d
+```
+
+```{r}
+export = export_d[,.(Country,Partner,Emissions, Year)]
+# setnames(export,"EmissionsPerCapita","Emissions")
+export
+```
+
+```{r}
+prepareDataEdges <- function(data,year,topN=100, countries=NULL){
+  mapData <- data[Year == year][,c("Year"):=NULL]
+  mapData$CountryName <- countrycode(mapData$Country, origin = 'iso3c', destination = 'country.name')
+  mapData$PartnerName <- countrycode(mapData$Partner, origin = 'iso3c', destination = 'country.name')
+  mapData = mapData[!is.na(CountryName) & !is.na(PartnerName)]
+  mapData[CountryName == "United States"]$CountryName = "USA"
+  mapData[PartnerName == "United States"]$PartnerName = "USA"
+  mapData <- mapData[CountryName != PartnerName]
+  if (!is.null(countries)){
+   mapData <- mapData[CountryName %in% countries & PartnerName %in% countries] 
+  }
+  mapData <- mapData[order(mapData$Emissions, decreasing=TRUE)[1:topN],]
+  
+  mapData
+  
+}
+
+prepareDataForPlot <- function(mapData){
+  data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group, emissions, countryname){
+    inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=40, addStartEnd=TRUE, breakAtDateLine=F)             
+    inter=data.table(inter)
+    inter$group=0
+    inter$size = emissions
+    inter$countryname = countryname
+    diff_of_lon=abs(dep_lon) + abs(arr_lon)
+    if(diff_of_lon > 180){
+      inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
+      inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
+    }else{
+      inter$group=group
+    }
+    return(inter)
+  }
+  worldMap<- data.table(map_data("world"))
+  worldMap = worldMap[worldMap$region != "Antarctica"]
+  
+  worldMap = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
+  print(worldMap)
+  mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
+  setnames(mapData, c("lat", "long"), c("CountryLat", "CountryLong"))
+  worldMap$long <- worldMap$long+3#+runif(length(worldMap$long), min = -1, max = 1)*4
+  worldMap$lat <- worldMap$lat-3#+runif(length(worldMap$lat), min = -1, max = 1)*4
+  mapData <- mapData[worldMap, on=.(PartnerName=region), nomatch=0]
+  setnames(mapData, c("lat", "long"), c("PartnerLat", "PartnerLong"))
+  print(unique(mapData$CountryName))
+  data_ready_plot=data.table()
+  for(i in c(1:nrow(mapData))){
+    tmp=data_for_connection(mapData$CountryLon[i], mapData$CountryLat[i], mapData$PartnerLon[i], mapData$PartnerLat[i] , i, mapData$Emissions[i], mapData$CountryName[i])
+    #tmp$homecontinent=summary$homecontinent[i]
+    data_ready_plot=rbind(tmp, data_ready_plot)
+  }
+  #data_ready_plot$homecontinent=factor(data_ready_plot$homecontinent, levels=c("Asia","Europe","Australia","Africa","North America","South America","Antarctica"))
+  data_ready_plot
+}
+
+dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, c("USA", "Poland", "China", "Australia", "United Arab Emirates", "Brazil", "South Africa", "Norway")))
+```
+
+
+```{r}
+# Plot
+print(max(dataForMap$size))
+dataForMap$size=dataForMap$size/max(dataForMap$size)
+worldMap<- data.table(map_data("world"))
+worldMap = worldMap[worldMap$region != "Antarctica"]
+p <- ggplot() +
+  #annotation_custom(earth, xmin = -180, xmax = 180, ymin = -90, ymax = 90) +
+  geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
+  geom_map(data=dataForMap,aes(map_id=countryname, alpha =1, color=countryname), fill = "gray", map = worldMap, size=2) +
+  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, lwd=5*size), alpha=1) +
+  # scale_color_brewer(palette="Set3") +
+  theme_void() +
+  theme(
+       legend.position="right",
+       panel.background = element_rect(fill = "black", colour = "black"),
+       panel.spacing=unit(c(0,0,0,0), "null"),
+       plot.margin=grid::unit(c(0,0,0,0), "cm"),
+  ) +
+  #ggplot2::annotate("text", x = -150, y = -45, hjust = 0, size = 11, label = paste("Where surfers travel."), color = "white") +
+  #ggplot2::annotate("text", x = -150, y = -51, hjust = 0, size = 8, label = paste("data-to-viz.com | NASA.gov | 10,000 #surf tweets recovered"), color = "white", alpha = 0.5) +
+  xlim(-180,180) +
+  ylim(-60,80) +
+  scale_x_continuous(expand = c(0.006, 0.006)) +
+  coord_equal() 
+
+# Save at PNG
+ggsave("img/Surfer_travel.png", width = 36, height = 15.22, units = "in", dpi = 90)
+```
+
+
+```{r}
+# library(chorddiag)
+# install.packages("circlize")
+library(circlize)
+
+library(igraph)
+dataEdges <- prepareDataEdges(export,2014,50, c("Germany", "France", "Poland", "China", "Australia"))[,.(CountryName,PartnerName,Emissions)]
+mygraph <- graph.data.frame(dataEdges)
+
+adj <- get.adjacency(mygraph, sparse = FALSE, attr='Emissions')
+
+#png(file = "antismash_by_type.png", width = 500, height = 500)
+chordDiagram(adj, transparency = 0.5, directional = 1)
+```
+

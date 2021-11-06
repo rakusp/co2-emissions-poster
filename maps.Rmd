@@ -51,7 +51,7 @@ data.table(map_data("world"))
 
 
 ```{r}
-plotMap <- function(data, year, column){
+plotMap <- function(data, year, column, name){
   worldMap<- data.table(map_data("world"))
   worldMap = worldMap[worldMap$region != "Antarctica"]
   mapData <- data[Year == year]
@@ -62,36 +62,36 @@ plotMap <- function(data, year, column){
     geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="white", color="#7f7f7f", size=0.5) +
     geom_map(aes(fill = mapData[[column]]), map = worldMap, colour = "gray") +
     expand_limits(x = worldMap$long, y = worldMap$lat)  +
-    scale_fill_viridis_c(option = "magma")
+    scale_fill_viridis_c(option = "magma", name = name) 
 }
 ```
 
 
 ```{r}
 name = "Emissions"
-plotMap(export,2014, name)
-plotMap(import,2014, name)
-plotMap(teritorial,2014, name)
-plotMap(everything,2014, name)
+plotMap(export,2014, name, paste("Export",name))
+plotMap(import,2014, name, paste("Import",name))
+plotMap(teritorial,2014, name, paste("Teritorial",name))
+plotMap(everything,2014, name, paste("Combined",name))
 ```
 
 
 ```{r}
 name = "EmissionsPerCapita"
-plotMap(export,2014, name)
-plotMap(import,2014, name)
-plotMap(teritorial,2014, name)
-plotMap(everything,2014, name)
+plotMap(export,2014, name, paste("Export",name))
+plotMap(import,2014, name, paste("Import",name))
+plotMap(teritorial,2014, name, paste("Teritorial",name))
+plotMap(everything,2014, name, paste("Combined",name))
 ```
 
 
 
 ```{r}
 name = "EmissionsPerGDP"
-plotMap(export,2014, name)
-plotMap(import,2014, name)
-plotMap(teritorial,2014, name)
-plotMap(everything,2014, name)
+plotMap(export,2014, name, paste("Export",name))
+plotMap(import,2014, name, paste("Import",name))
+plotMap(teritorial,2014, name, paste("Teritorial",name))
+plotMap(everything,2014, name, paste("Combined",name))
 ```
 
 
