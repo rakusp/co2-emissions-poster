@@ -157,6 +157,14 @@ prepareDataForPlot <- function(mapData){
     inter$size = emissions
     inter$countryname = countryname
     diff_of_lon=abs(dep_lon) + abs(arr_lon)
+    if( dep_lon <= arr_lat){
+      # inter$ends="last"
+      inter <- inter[order(lon, decreasing = TRUE)]
+    }else{
+      inter <- inter[order(lon)]
+      # inter$ends="first"
+    }
+    
     if(diff_of_lon > 180){
       inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
       inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
@@ -172,10 +180,10 @@ prepareDataForPlot <- function(mapData){
   print(worldMap)
   mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
   setnames(mapData, c("lat", "long"), c("CountryLat", "CountryLong"))
-  worldMap$long <- worldMap$long+3#+runif(length(worldMap$long), min = -1, max = 1)*4
-  worldMap$lat <- worldMap$lat-3#+runif(length(worldMap$lat), min = -1, max = 1)*4
   mapData <- mapData[worldMap, on=.(PartnerName=region), nomatch=0]
   setnames(mapData, c("lat", "long"), c("PartnerLat", "PartnerLong"))
+  mapData$PartnerLat <- mapData$PartnerLat + + runif(length(mapData$PartnerLong), min = -1, max = -0.2)*3
+  mapData$PartnerLong <- mapData$PartnerLong+ runif(length(mapData$PartnerLat), min = 0.2, max = 1)*3
   print(unique(mapData$CountryName))
   data_ready_plot=data.table()
   for(i in c(1:nrow(mapData))){
@@ -195,17 +203,20 @@ dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, c("USA", "Pol
 # Plot
 print(max(dataForMap$size))
 dataForMap$size=dataForMap$size/max(dataForMap$size)
+#dataForMap <- dataForMap[order(lon)]
 worldMap<- data.table(map_data("world"))
-worldMap = worldMap[worldMap$region != "Antarctica"]
+#worldMap = worldMap[worldMap$region != "Antarctica"]
 p <- ggplot() +
   #annotation_custom(earth, xmin = -180, xmax = 180, ymin = -90, ymax = 90) +
   geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
-  geom_map(data=dataForMap,aes(map_id=countryname, alpha =1, color=countryname), fill = "gray", map = worldMap, size=2) +
-  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, lwd=5*size), alpha=1) +
-  # scale_color_brewer(palette="Set3") +
+  geom_map(data=dataForMap,aes(map_id=countryname, color=countryname), fill = "gray", map = worldMap, size=3,  alpha =0.1) +
+#  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open", ends=dataForMap[order(group)]$ends)) +
+  #geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
+  #geom_segment(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
+  geom_path(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open")) +
   theme_void() +
   theme(
-       legend.position="right",
+       legend.position=NULL,
        panel.background = element_rect(fill = "black", colour = "black"),
        panel.spacing=unit(c(0,0,0,0), "null"),
        plot.margin=grid::unit(c(0,0,0,0), "cm"),
@@ -215,10 +226,12 @@ p <- ggplot() +
   xlim(-180,180) +
   ylim(-60,80) +
   scale_x_continuous(expand = c(0.006, 0.006)) +
-  coord_equal() 
+  coord_equal() +
+  scale_size_continuous(range = c(1,7))
 
 # Save at PNG
-ggsave("img/Surfer_travel.png", width = 36, height = 15.22, units = "in", dpi = 90)
+ggsave("img/TotaExportImport.png", width = 36, height = 15.22, units = "in", dpi = 150)
+p
 ```
 
 
