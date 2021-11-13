@@ -1,5 +1,5 @@
 
-map_total <- function (countries){
+map_total <- function (interestingCountries){
   library(tidyverse)
   library(viridis)
   library(DT)
@@ -19,7 +19,6 @@ map_total <- function (countries){
   load_data = function (name){
     data = read.csv(paste("data/",name,".csv", sep=""), sep = "|",  col.names = c("DT", "Country", "Partner", "Industry", "Year", "Emissions"))
     data = data.table(data)
-    #data = data[Partner== "WLD" & Industry=="DTOTAL"][,c("DT","Partner", "Industry"):=NULL]
     data = data[Industry=="DTOTAL"][,c("DT","Industry"):=NULL]
     data = data[population_gdp, on = .(Country = Code, Year = Year), nomatch=0]
     data[,EmissionsPerCapita:=Emissions/Population]
@@ -29,7 +28,7 @@ map_total <- function (countries){
   export_d = load_data("EXGR_TCO2")
   export = export_d[,.(Country,Partner,Emissions, Year)]
   
-  prepareDataEdges <- function(data,year,topN=100, countries=NULL){
+  prepareDataEdges <- function(data,year,topN=1000, countries=NULL){
     mapData <- data[Year == year][,c("Year"):=NULL]
     mapData$CountryName <- countrycode(mapData$Country, origin = 'iso3c', destination = 'country.name')
     mapData$PartnerName <- countrycode(mapData$Partner, origin = 'iso3c', destination = 'country.name')
@@ -53,18 +52,19 @@ map_total <- function (countries){
       inter$group=0
       inter$size = emissions
       inter$countryname = countryname
-      diff_of_lon=abs(dep_lon) + abs(arr_lon)
-      if( dep_lon <= arr_lat){
-        # inter$ends="last"
-        inter <- inter[order(lon, decreasing = TRUE)]
-      }else{
+      inter$dep_lon = dep_lon
+      inter$arr_lon = arr_lon
+      diff_of_lon=abs(dep_lon-arr_lon)
+      if( dep_lon <= arr_lon){
         inter <- inter[order(lon)]
-        # inter$ends="first"
+      }else{
+        inter <- inter[order(lon, , decreasing = TRUE)]
       }
       
       if(diff_of_lon > 180){
         inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
         inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
+        inter <- inter[dim(inter)[1]:1,]
       }else{
         inter$group=group
       }
@@ -85,14 +85,11 @@ map_total <- function (countries){
     data_ready_plot=data.table()
     for(i in c(1:nrow(mapData))){
       tmp=data_for_connection(mapData$CountryLon[i], mapData$CountryLat[i], mapData$PartnerLon[i], mapData$PartnerLat[i] , i, mapData$Emissions[i], mapData$CountryName[i])
-      #tmp$homecontinent=summary$homecontinent[i]
       data_ready_plot=rbind(tmp, data_ready_plot)
     }
-    #data_ready_plot$homecontinent=factor(data_ready_plot$homecontinent, levels=c("Asia","Europe","Australia","Africa","North America","South America","Antarctica"))
     data_ready_plot
   }
   
-  interestingCountries <- c("USA", "Poland", "China", "Australia", "United Arab Emirates", "Brazil", "South Africa", "Norway")
   dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, interestingCountries))
   
   dataForMap$size=dataForMap$size/max(dataForMap$size)
@@ -100,26 +97,28 @@ map_total <- function (countries){
   worldMap<- data.table(map_data("world"))
   #worldMap = worldMap[worldMap$region != "Antarctica"]
   ggplot() +
-    #annotation_custom(earth, xmin = -180, xmax = 180, ymin = -90, ymax = 90) +
     geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
-    geom_map(data=dataForMap,aes(map_id=countryname, color=countryname), fill = "gray", map = worldMap, size=3,  alpha =0.1) +
-    #  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open", ends=dataForMap[order(group)]$ends)) +
-    #geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
-    #geom_segment(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
-    geom_path(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open")) +
+    geom_map(data=dataForMap,aes(map_id=countryname), fill="white",  map = worldMap, size=2,  alpha =0.35) +
+    geom_map(data=dataForMap,aes(map_id=countryname, fill=countryname),  map = worldMap, size=2,  alpha =0.35) +
+    geom_path(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=log(1 +size), alpha = 1-log(1 +size)), arrow = arrow(length=unit(0.4,"cm"), type = "open")) +
     theme_void() +
     theme(
-      legend.position=NULL,
+      legend.position="none",
       panel.background = element_rect(fill = "black", colour = "black"),
       panel.spacing=unit(c(0,0,0,0), "null"),
       plot.margin=grid::unit(c(0,0,0,0), "cm"),
     ) +
-    #ggplot2::annotate("text", x = -150, y = -45, hjust = 0, size = 11, label = paste("Where surfers travel."), color = "white") +
-    #ggplot2::annotate("text", x = -150, y = -51, hjust = 0, size = 8, label = paste("data-to-viz.com | NASA.gov | 10,000 #surf tweets recovered"), color = "white", alpha = 0.5) +
+    guides(show.legend = FALSE)+
     xlim(-180,180) +
-    ylim(-60,80) +
+    ylim(-90,90) +
+    expand_limits(x = worldMap$long, y = worldMap$lat) +
     scale_x_continuous(expand = c(0.006, 0.006)) +
     coord_equal() +
-    scale_size_continuous(range = c(1,7))
+    scale_size_continuous(range = c(1,8)) +
+    scale_alpha_continuous(range = c(0.7,1)) +
+    scale_color_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red")) +
+    scale_fill_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red"))
+    # scale_color_brewer(palette="Set2") +
+    # scale_fill_brewer(palette="Set2")
   
 }

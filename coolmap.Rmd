@@ -166,12 +166,6 @@ prepareDataForPlot <- function(mapData){
     if(diff_of_lon > 180){
       inter$group[ which(inter$lon>=0)]=paste(group, "A",sep="")
       inter$group[ which(inter$lon<0)]=paste(group, "B",sep="")
-      # if( dep_lon => arr_lon){
-      #   A <- A[order(lon)]
-      # }else{
-      #   A <- A[order(lon, , decreasing = TRUE)]
-      # }
-      # inter <- rbind(A,B)
       inter <- inter[dim(inter)[1]:1,]
     }else{
       inter$group=group
@@ -179,8 +173,7 @@ prepareDataForPlot <- function(mapData){
     return(inter)
   }
   worldMap<- data.table(map_data("world"))
-  worldMap = worldMap[worldMap$region != "Antarctica"]
-  
+
   worldMap = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
   print(worldMap)
   mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
@@ -209,74 +202,84 @@ dataForMapd
 
 ```{r}
 # Plot
-print(max(dataForMap$size))
-dataForMap<- dataForMapd[,]
-worldMap<- data.table(map_data("world"))
-p1 <- ggplot() +
-  geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
-  geom_map(data=dataForMap,aes(map_id=countryname), fill="white",  map = worldMap, size=2,  alpha =0.35) +
-  geom_map(data=dataForMap,aes(map_id=countryname, fill=countryname),  map = worldMap, size=2,  alpha =0.35) +
-#  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open", ends=dataForMap[order(group)]$ends)) +
-  #geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
-  #geom_segment(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
-  geom_path(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=log(1 +size)), arrow = arrow(length=unit(0.6,"cm"), type = "open")) +
-  theme_void() +
-  theme(
-       legend.position="none",
-       panel.background = element_rect(fill = "black", colour = "black"),
-       panel.spacing=unit(c(0,0,0,0), "null"),
-       plot.margin=grid::unit(c(0,0,0,0), "cm"),
-  ) +
-  guides(show.legend = FALSE)+
-  #ggplot2::annotate("text", x = -150, y = -45, hjust = 0, size = 11, label = paste("Where surfers travel."), color = "white") +
-  #ggplot2::annotate("text", x = -150, y = -51, hjust = 0, size = 8, label = paste("data-to-viz.com | NASA.gov | 10,000 #surf tweets recovered"), color = "white", alpha = 0.5) +
-  xlim(-180,180) +
-  ylim(-80,80) +
-  expand_limits(x = worldMap$long, y = worldMap$lat) +
-  scale_x_continuous(expand = c(0.006, 0.006)) +
-  coord_equal() +
-  scale_size_continuous(range = c(1,5)) +
-  scale_alpha_continuous(c(0.99,1))
-
-# Save at PNG
-ggsave("img/TotaExportImport.png", width = 36, height = 15.22, units = "in", dpi = 150)
-p1
+# dataForMap<- dataForMapd[,]
+# worldMap<- data.table(map_data("world"))
+# p1 <- ggplot() +
+#   geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
+#   geom_map(data=dataForMap,aes(map_id=countryname), fill="white",  map = worldMap, size=2,  alpha =0.35) +
+#   geom_map(data=dataForMap,aes(map_id=countryname, fill=countryname),  map = worldMap, size=2,  alpha =0.35) +
+# #  geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5), arrow = arrow(length=unit(0.30,"cm"), type = "open", ends=dataForMap[order(group)]$ends)) +
+#   #geom_line(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
+#   #geom_segment(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=10*log(1 +size)/5)) +
+#   geom_path(data=dataForMap, aes(x=lon, y=lat, group=group, color=countryname, size=log(1 +size)), arrow = arrow(length=unit(0.6,"cm"), type = "open")) +
+#   theme_void() +
+#   theme(
+#        legend.position="none",
+#        panel.background = element_rect(fill = "black", colour = "black"),
+#        panel.spacing=unit(c(0,0,0,0), "null"),
+#        plot.margin=grid::unit(c(0,0,0,0), "cm"),
+#   ) +
+#   guides(show.legend = FALSE)+
+#   #ggplot2::annotate("text", x = -150, y = -45, hjust = 0, size = 11, label = paste("Where surfers travel."), color = "white") +
+#   #ggplot2::annotate("text", x = -150, y = -51, hjust = 0, size = 8, label = paste("data-to-viz.com | NASA.gov | 10,000 #surf tweets recovered"), color = "white", alpha = 0.5) +
+#   xlim(-180,180) +
+#   ylim(-80,80) +
+#   expand_limits(x = worldMap$long, y = worldMap$lat) +
+#   scale_x_continuous(expand = c(0.006, 0.006)) +
+#   coord_equal() +
+#   scale_size_continuous(range = c(1,5)) +
+#   scale_alpha_continuous(range = c(0.9,1))
+# 
+# # Save at PNG
+# ggsave("img/TotaExportImport.png", width = 36, height = 15.22, units = "in", dpi = 150)
+# p1
 ```
 
 
 ```{r}
 # library(chorddiag)
 # install.packages("circlize")
-library(circlize)
-
-library(igraph)
-dataEdges <- prepareDataEdges(export,2014,50, c("Germany", "France", "Poland", "China", "Australia"))[,.(CountryName,PartnerName,Emissions)]
-mygraph <- graph.data.frame(dataEdges)
-
-adj <- get.adjacency(mygraph, sparse = FALSE, attr='Emissions')
-
-#png(file = "antismash_by_type.png", width = 500, height = 500)
-chordDiagram(adj, transparency = 0.5, directional = 1)
+# library(circlize)
+# 
+# library(igraph)
+# dataEdges <- prepareDataEdges(export,2014,50, c("Germany", "France", "Poland", "China", "Australia"))[,.(CountryName,PartnerName,Emissions)]
+# mygraph <- graph.data.frame(dataEdges)
+# 
+# adj <- get.adjacency(mygraph, sparse = FALSE, attr='Emissions')
+# 
+# #png(file = "antismash_by_type.png", width = 500, height = 500)
+# chordDiagram(adj, transparency = 0.5, directional = 1)
 ```
 
 ```{r}
-library(gridExtra)
-source("index.R")
-source("map.R")
+# library(gridExtra)
+# source("index.R")
+# source("map.R")
 
-interestingCountries <- c("USA", "Poland", "China", "Australia", "United Arab Emirates", "Brazil", "South Africa", "Norway")
+# interestingCountries <- c("USA", "Poland", "China", "Australia", "United Arab Emirates", "Brazil", "South Africa", "Norway")
+# print("generating 1st chart")
+# p1 <- map_total(interestingCountries)
+# print("generating 2nd chart")
+# p2 <- ggplot(dataForMap, aes(x=lon, y=lat)) + geom_point() + ggtitle("Wykres Malwiny")
+# print("generating 3rd chart")
+# p3 <- gdp_plot(interestingCountries)
+```
+```{r}
+# g = arrangeGrob(p1, p2,p3, ncol=1)
+# 
+# # Save at PNG
+# ggsave("img/TotaExportImport.png",g, width = 15, height = 36, units = "in", dpi = 150)
+```
+
+
+```{r}
+source("map.R")
+library(ggplot2)
+
+interestingCountries <- c("USA", "China", "Australia", "Argentina", "South Africa", "Germany")
 print("generating 1st chart")
 p1 <- map_total(interestingCountries)
-print("generating 2nd chart")
-p2 <- ggplot(dataForMap, aes(x=lon, y=lat)) + geom_point() + ggtitle("Wykres Malwiny")
-print("generating 3rd chart")
-p3 <- gdp_plot(interestingCountries)
+ggsave("img/TotaExportImport.png", width = 36, height = 15.22, units = "in", dpi = 150)
+p1
 ```
-```{r}
-g = arrangeGrob(p1, p2,p3, ncol=1)
-
-# Save at PNG
-ggsave("img/TotaExportImport.png",g, width = 15, height = 36, units = "in", dpi = 150)
-```
-
 
