@@ -4,6 +4,7 @@ library(maps)
 library(dplyr)
 
 ## https://ourworldindata.org/grapher/co2-emissions-vs-gdp?tab=table&time=2018
+## tonnes per capita
 
 interestingCountries = c("Germany", "China", "Poland", "United States", "Russia")
 data = read.csv("data/co2-emissions-vs-gdp.csv")
@@ -48,3 +49,4 @@ data %>%
        y = "CO2 per GPD per capita in kg/$")
 
 # Jak widać w chinach emisje per capita są niskie jedynie z powodu niskiego PKB
+

@@ -40,6 +40,7 @@ vignettes/*.pdf
 
 data/EXGR_TCO2.csv
 data/IMGR_TCO2.csv
+data/compressed.zip
 
 data/co2-emissions-vs-gdp.csv
 twd_proj1.Rproj
