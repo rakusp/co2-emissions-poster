@@ -11,7 +11,6 @@ map_total <- function (interestingCountries){
   library(data.table)
   library(countrycode)
   
-  
   population_gdp = data.table(read.csv("data/co2-emissions-vs-gdp.csv"))
   population_gdp$GDP = population_gdp$GDP.per.capita*population_gdp$Total.population..Gapminder..HYDE...UN.
   population_gdp = population_gdp[,Population:=Total.population..Gapminder..HYDE...UN.][!is.na(Code) & !is.na(Population) & !is.na(GDP),.(Code,Population,GDP, Year)]
@@ -77,7 +76,6 @@ map_total <- function (interestingCountries){
     worldMap = worldMap[region!= "South Africa" | (long <= 32)]#fix rpa
     worldMap = worldMap[region!= "Australia" | (lat >= -45)]#fix rpa
     worldMap = worldMap[region!= "Argentina" | (lat >= -52)]#fix rpa
-    ####################
     CJ.table.1 <- function(X,Y)
       setkey(X[,c(k=1,.SD)],k)[Y[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
     
@@ -96,19 +94,8 @@ map_total <- function (interestingCountries){
       return(2 * atan2(sqrt(a), sqrt(1 - a)) * r)
     }
     closest[, dist := dt.haversine(CountryLat, CountryLong, PartnerLat, PartnerLong)]
-    #closest$dist = (closest$CountryLat - closest$PartnerLat)^2 + (closest$CountryLong - closest$PartnerLong)^2
     closest <- closest[ , .SD[which.min(dist)], by = .(CountryName,PartnerName)]
     print(closest)
-    ####################
-    #print(centers)
-    # worldMap = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
-    # mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
-    # setnames(mapData, c("lat", "long"), c("CountryLat", "CountryLong"))
-    # mapData <- mapData[worldMap, on=.(PartnerName=region), nomatch=0]
-    # setnames(mapData, c("lat", "long"), c("PartnerLat", "PartnerLong"))
-    # mapData$PartnerLat <- mapData$PartnerLat + + runif(length(mapData$PartnerLong), min = -1, max = -0.2)*3
-    # mapData$PartnerLong <- mapData$PartnerLong+ runif(length(mapData$PartnerLat), min = 0.2, max = 1)*3
-    # print(unique(mapData$CountryName))
     mapData <- mapData[closest, on=.(CountryName=CountryName,PartnerName=PartnerName), nomatch=0]
     data_ready_plot=data.table()
     for(i in c(1:nrow(mapData))){
@@ -118,7 +105,7 @@ map_total <- function (interestingCountries){
     data_ready_plot
   }
   
-  dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, interestingCountries), interestingCountries)
+  dataForMap <-prepareDataForPlot(prepareDataEdges(export,2015,1000, interestingCountries), interestingCountries)
   
   dataForMap$size=dataForMap$size/max(dataForMap$size)
   worldMap<- data.table(map_data("world"))
@@ -144,7 +131,4 @@ map_total <- function (interestingCountries){
     scale_alpha_continuous(range = c(0.7,1)) +
     scale_color_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red")) +
     scale_fill_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red"))
-    # scale_color_brewer(palette="Set2") +
-    # scale_fill_brewer(palette="Set2")
-  
 }
