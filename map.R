@@ -45,7 +45,7 @@ map_total <- function (interestingCountries){
     
   }
   
-  prepareDataForPlot <- function(mapData){
+  prepareDataForPlot <- function(mapData, interestingCountries){
     data_for_connection=function( dep_lon, dep_lat, arr_lon, arr_lat, group, emissions, countryname){
       inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=40, addStartEnd=TRUE, breakAtDateLine=F)             
       inter=data.table(inter)
@@ -71,17 +71,45 @@ map_total <- function (interestingCountries){
       return(inter)
     }
     worldMap<- data.table(map_data("world"))
-    worldMap = worldMap[worldMap$region != "Antarctica"]
+    worldMap <- worldMap[,.(region, lat,long)]
+    worldMap <- worldMap[region %in% interestingCountries]
+    worldMap = worldMap[region!= "USA" | (long >= -130 & long <= 0)] #fix usa
+    worldMap = worldMap[region!= "South Africa" | (long <= 32)]#fix rpa
+    worldMap = worldMap[region!= "Australia" | (lat >= -45)]#fix rpa
+    worldMap = worldMap[region!= "Argentina" | (lat >= -52)]#fix rpa
+    ####################
+    CJ.table.1 <- function(X,Y)
+      setkey(X[,c(k=1,.SD)],k)[Y[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
     
-    worldMap = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
-    print(worldMap)
-    mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
-    setnames(mapData, c("lat", "long"), c("CountryLat", "CountryLong"))
-    mapData <- mapData[worldMap, on=.(PartnerName=region), nomatch=0]
-    setnames(mapData, c("lat", "long"), c("PartnerLat", "PartnerLong"))
-    mapData$PartnerLat <- mapData$PartnerLat + + runif(length(mapData$PartnerLong), min = -1, max = -0.2)*3
-    mapData$PartnerLong <- mapData$PartnerLong+ runif(length(mapData$PartnerLat), min = 0.2, max = 1)*3
-    print(unique(mapData$CountryName))
+    centers = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
+    closest <- CJ.table.1(centers,worldMap)
+    setnames(closest,c("region","lat","long", "i.region", "i.lat", "i.long"), c("CountryName", "CountryLat", "CountryLong", "PartnerName", "PartnerLat", "PartnerLong"))
+    dt.haversine <- function(lat_from, lon_from, lat_to, lon_to, r = 6378137){
+      radians <- pi/180
+      lat_to <- lat_to * radians
+      lat_from <- lat_from * radians
+      lon_to <- lon_to * radians
+      lon_from <- lon_from * radians
+      dLat <- (lat_to - lat_from)
+      dLon <- (lon_to - lon_from)
+      a <- (sin(dLat/2)^2) + (cos(lat_from) * cos(lat_to)) * (sin(dLon/2)^2)
+      return(2 * atan2(sqrt(a), sqrt(1 - a)) * r)
+    }
+    closest[, dist := dt.haversine(CountryLat, CountryLong, PartnerLat, PartnerLong)]
+    #closest$dist = (closest$CountryLat - closest$PartnerLat)^2 + (closest$CountryLong - closest$PartnerLong)^2
+    closest <- closest[ , .SD[which.min(dist)], by = .(CountryName,PartnerName)]
+    print(closest)
+    ####################
+    #print(centers)
+    # worldMap = worldMap[,.(lat=mean(lat),long=mean(long)), by = region]
+    # mapData <- mapData[worldMap, on=.(CountryName=region), nomatch=0]
+    # setnames(mapData, c("lat", "long"), c("CountryLat", "CountryLong"))
+    # mapData <- mapData[worldMap, on=.(PartnerName=region), nomatch=0]
+    # setnames(mapData, c("lat", "long"), c("PartnerLat", "PartnerLong"))
+    # mapData$PartnerLat <- mapData$PartnerLat + + runif(length(mapData$PartnerLong), min = -1, max = -0.2)*3
+    # mapData$PartnerLong <- mapData$PartnerLong+ runif(length(mapData$PartnerLat), min = 0.2, max = 1)*3
+    # print(unique(mapData$CountryName))
+    mapData <- mapData[closest, on=.(CountryName=CountryName,PartnerName=PartnerName), nomatch=0]
     data_ready_plot=data.table()
     for(i in c(1:nrow(mapData))){
       tmp=data_for_connection(mapData$CountryLon[i], mapData$CountryLat[i], mapData$PartnerLon[i], mapData$PartnerLat[i] , i, mapData$Emissions[i], mapData$CountryName[i])
@@ -90,12 +118,10 @@ map_total <- function (interestingCountries){
     data_ready_plot
   }
   
-  dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, interestingCountries))
+  dataForMap <-prepareDataForPlot(prepareDataEdges(export,2014,1000, interestingCountries), interestingCountries)
   
   dataForMap$size=dataForMap$size/max(dataForMap$size)
-  #dataForMap <- dataForMap[order(lon)]
   worldMap<- data.table(map_data("world"))
-  #worldMap = worldMap[worldMap$region != "Antarctica"]
   ggplot() +
     geom_map(data=worldMap, map=worldMap, aes(map_id=region), fill="gray", color="#7f7f7f", size=0.5) +
     geom_map(data=dataForMap,aes(map_id=countryname), fill="white",  map = worldMap, size=2,  alpha =0.35) +
@@ -114,7 +140,7 @@ map_total <- function (interestingCountries){
     expand_limits(x = worldMap$long, y = worldMap$lat) +
     scale_x_continuous(expand = c(0.006, 0.006)) +
     coord_equal() +
-    scale_size_continuous(range = c(1,8)) +
+    scale_size_continuous(range = c(2,10)) +
     scale_alpha_continuous(range = c(0.7,1)) +
     scale_color_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red")) +
     scale_fill_manual(values=c("#FF61C3", "#00B9E3", "#00BA38", "#F2E411", "white", "red"))
